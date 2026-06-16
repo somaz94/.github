@@ -17,10 +17,10 @@ on:
   workflow_call:
     inputs:
       allowlist:
-        description: 'Comma-separated author emails exempt from the check (e.g. bots).'
+        description: 'Extra comma-separated author emails exempt from the check. GitHub bots ([bot] accounts) are already skipped automatically.'
         required: false
         type: string
-        default: 'dependabot[bot]@users.noreply.github.com'
+        default: ''
 
 permissions:
   contents: read
@@ -55,7 +55,18 @@ jobs:
             author_email=$(git show -s --format='%ae' "$commit")
             author_name=$(git show -s --format='%an' "$commit")
 
-            # Skip allowlisted authors (bots, etc.).
+            # Skip GitHub bot accounts (Dependabot, github-actions, Renovate, ...).
+            # Bot accounts always have a name ending in "[bot]" and cannot sign a
+            # DCO, so they are exempt — matching the convention of the DCO app.
+            # This keeps Dependabot auto-merge flows green.
+            case "$author_name" in
+              *'[bot]')
+                echo "skip (bot): $commit  $author_name <$author_email>"
+                continue
+                ;;
+            esac
+
+            # Skip extra allowlisted author emails.
             case ",${ALLOWLIST}," in
               *",${author_email},"*)
                 echo "skip (allowlisted): $commit  $author_name <$author_email>"
