@@ -1,0 +1,86 @@
+name: DCO
+
+# Reusable DCO (Developer Certificate of Origin) check.
+# Each repository calls this with a tiny stub workflow:
+#
+#   on:
+#     pull_request:
+#       types: [opened, synchronize, reopened]
+#   jobs:
+#     dco:
+#       uses: somaz94/.github/.github/workflows/dco-reusable.yml@main
+#
+# It verifies every non-merge commit in the pull request carries a
+# `Signed-off-by:` trailer (added with `git commit -s`).
+
+on:
+  workflow_call:
+    inputs:
+      allowlist:
+        description: 'Comma-separated author emails exempt from the check (e.g. bots).'
+        required: false
+        type: string
+        default: 'dependabot[bot]@users.noreply.github.com'
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Verify Signed-off-by on all PR commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ALLOWLIST: ${{ inputs.allowlist }}
+        run: |
+          set -euo pipefail
+
+          fail=0
+          # IFS split is safe here: rev-list yields one SHA per line.
+          for commit in $(git rev-list "${BASE_SHA}..${HEAD_SHA}"); do
+            # Skip merge commits (more than one parent).
+            parent_count=$(git show -s --format='%P' "$commit" | wc -w | tr -d ' ')
+            if [ "$parent_count" -gt 1 ]; then
+              continue
+            fi
+
+            author_email=$(git show -s --format='%ae' "$commit")
+            author_name=$(git show -s --format='%an' "$commit")
+
+            # Skip allowlisted authors (bots, etc.).
+            case ",${ALLOWLIST}," in
+              *",${author_email},"*)
+                echo "skip (allowlisted): $commit  $author_name <$author_email>"
+                continue
+                ;;
+            esac
+
+            if git show -s --format='%B' "$commit" \
+                 | grep -qiE '^Signed-off-by: .+ <.+@.+>'; then
+              echo "ok:   $commit  $author_name <$author_email>"
+            else
+              echo "::error::Commit $commit by $author_name <$author_email> is missing a Signed-off-by line."
+              fail=1
+            fi
+          done
+
+          if [ "$fail" -ne 0 ]; then
+            echo ""
+            echo "DCO check failed."
+            echo "Add a Signed-off-by trailer to each commit:"
+            echo "  - new commit:        git commit -s -m \"...\""
+            echo "  - existing commits:  git rebase --signoff <base> && git push --force-with-lease"
+            echo "See https://github.com/somaz94/.github/blob/main/DCO.md"
+            exit 1
+          fi
+
+          echo ""
+          echo "All commits are signed off."
