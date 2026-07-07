@@ -41,12 +41,11 @@ on:
 
 jobs:
   ok-to-test:
-    # Only act on pull-request comments that start with the command. The rest
-    # of every issue/PR comment in the repo short-circuits here, so no runner
-    # spins up for unrelated chatter.
-    if: >
-      github.event.issue.pull_request &&
-      startsWith(github.event.comment.body, inputs.command)
+    # Only pull-request comments are relevant; comments on plain issues are
+    # ignored. The command-prefix match is done inside the step (a reusable
+    # job-level `if` that reads `inputs` fails to compile), so the job
+    # condition stays a simple, compile-safe expression.
+    if: ${{ github.event.issue.pull_request }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -58,10 +57,17 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
+            const command = `${{ inputs.command }}`;
             const label = `${{ inputs.label }}`;
             const commenter = context.payload.comment.user.login;
             const issue_number = context.payload.issue.number;
             const comment_id = context.payload.comment.id;
+
+            // Ignore comments that are not the trigger command.
+            if (!context.payload.comment.body.startsWith(command)) {
+              core.info(`Comment does not start with "${command}" — ignoring.`);
+              return;
+            }
 
             // Verify the commenter has write access. read/none is rejected so
             // an arbitrary contributor cannot self-approve CI on their own PR.
