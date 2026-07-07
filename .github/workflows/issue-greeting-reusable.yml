@@ -1,0 +1,53 @@
+name: Issue Greeting Bot
+
+# Reusable issue greeting. Each repository calls this with a tiny stub:
+#
+#   on:
+#     issues:
+#       types: [opened]
+#   permissions:
+#     issues: write
+#   jobs:
+#     greeting:
+#       uses: somaz94/.github/.github/workflows/issue-greeting-reusable.yml@main
+#
+# The stub MUST declare `issues: write` — a called workflow's permissions
+# cannot exceed the caller's, so omitting it makes the run fail to start.
+# Pull-request greetings are handled separately by pr-welcome-reusable.yml;
+# this workflow is for plain issues only.
+
+on:
+  workflow_call:
+    inputs:
+      message:
+        description: 'Greeting comment body (Markdown). Overrides the default.'
+        required: false
+        type: string
+        default: ''
+
+# One greeting per issue. cancel-in-progress: true is safe — if the user
+# closes+reopens quickly we just want the latest run to win.
+concurrency:
+  group: issue-greeting-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  greeting:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Add greeting comment
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const custom = `${{ inputs.message }}`.trim();
+            const body = custom ||
+              '👋 Hello! Thank you for creating this issue.\n\nWe will review it and get back to you soon.';
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });

@@ -1,0 +1,101 @@
+name: Generate Contributors
+
+# Reusable CONTRIBUTORS.md generator. Each repository calls this with a stub:
+#
+#   on:
+#     workflow_dispatch:
+#     workflow_run:
+#       workflows: ["Generate changelog"]
+#       types: [completed]
+#   permissions:
+#     contents: write
+#   jobs:
+#     update_contributors:
+#       uses: somaz94/.github/.github/workflows/contributors-reusable.yml@main
+#       secrets: inherit
+#
+# The stub MUST declare `contents: write` AND pass `secrets: inherit` — the
+# checkout/commit steps push with PAT_TOKEN, which the reusable receives as a
+# named secret below. A called workflow's permissions cannot exceed the
+# caller's, so omitting the permission makes the run fail to start.
+
+on:
+  workflow_call:
+    inputs:
+      output_file:
+        description: 'File the contributors table is written to.'
+        required: false
+        type: string
+        default: 'CONTRIBUTORS.md'
+      format:
+        description: 'Output format for contributors-action (table, list, ...).'
+        required: false
+        type: string
+        default: 'table'
+      columns:
+        description: 'Number of columns in the table layout.'
+        required: false
+        type: number
+        default: 6
+      exclude:
+        description: 'Comma-separated logins to exclude.'
+        required: false
+        type: string
+        default: 'github-actions[bot],actions-user'
+      commit_message:
+        description: 'Commit message for the generated file.'
+        required: false
+        type: string
+        default: 'docs: update CONTRIBUTORS.md'
+      branch:
+        description: 'Branch to pull from and commit to.'
+        required: false
+        type: string
+        default: 'main'
+    secrets:
+      PAT_TOKEN:
+        description: 'Personal access token with push access, used for checkout and commit.'
+        required: true
+
+# Serialize runs — CONTRIBUTORS.md is rewritten in full each time, so two
+# parallel runs would race and clobber each other. cancel-in-progress: true
+# is safe since the latest run always produces the up-to-date file.
+concurrency:
+  group: contributors
+  cancel-in-progress: true
+
+jobs:
+  update_contributors:
+    name: Update Contributors
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          fetch-depth: 0
+
+      - name: Pull latest changes
+        run: git pull origin ${{ inputs.branch }}
+
+      - name: Generate Contributors
+        uses: somaz94/contributors-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          output_file: ${{ inputs.output_file }}
+          format: ${{ inputs.format }}
+          columns: ${{ inputs.columns }}
+          exclude: ${{ inputs.exclude }}
+
+      - name: Commit changes
+        uses: somaz94/go-git-commit-action@v1
+        with:
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          commit_message: ${{ inputs.commit_message }}
+          branch: ${{ inputs.branch }}
+          file_pattern: ${{ inputs.output_file }}
+          github_token: ${{ secrets.PAT_TOKEN }}
