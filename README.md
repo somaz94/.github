@@ -74,6 +74,13 @@ on:
   issue_comment:
     types: [created]
 
+# The stub must grant the write scopes the reusable workflow needs, otherwise
+# the call fails to start (a called workflow's permissions cannot exceed the
+# caller's).
+permissions:
+  pull-requests: write
+  issues: write
+
 jobs:
   ok-to-test:
     uses: somaz94/.github/.github/workflows/ok-to-test-reusable.yml@main
