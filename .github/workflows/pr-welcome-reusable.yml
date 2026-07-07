@@ -1,0 +1,68 @@
+name: PR Welcome
+
+# Reusable pull-request greeting. Each repository calls this with a tiny stub:
+#
+#   on:
+#     pull_request_target:
+#       types: [opened]
+#   permissions:
+#     pull-requests: write
+#   jobs:
+#     welcome:
+#       uses: somaz94/.github/.github/workflows/pr-welcome-reusable.yml@main
+#
+# It posts one greeting comment when a pull request is opened. The trigger
+# is `pull_request_target` (not `pull_request`) so the comment also works on
+# pull requests from forks, where a plain `pull_request` token would be
+# read-only. This job only reads event metadata and writes a comment — it
+# never checks out or runs PR-authored code, so `pull_request_target` is safe
+# here.
+
+on:
+  workflow_call:
+    inputs:
+      message:
+        description: 'Greeting comment body (Markdown). Overrides the default.'
+        required: false
+        type: string
+        default: ''
+
+# One greeting per pull request. cancel-in-progress: true is safe — if the PR
+# is closed+reopened quickly we just want the latest run to win.
+concurrency:
+  group: pr-welcome-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  welcome:
+    # Skip bot-authored pull requests (Dependabot, Renovate, ...) so their
+    # frequent PRs are not greeted. `user.type` is `Bot` for those accounts
+    # (their login is e.g. `dependabot[bot]`), matching the DCO check's
+    # bot-skip convention.
+    if: ${{ github.event.pull_request.user.type != 'Bot' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Add greeting comment
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const custom = `${{ inputs.message }}`.trim();
+            const body = custom || [
+              'Thanks for opening this pull request! 🙌',
+              '',
+              'A maintainer will review it soon. In the meantime, please make sure:',
+              '',
+              '- All commits are signed off (`git commit -s`) — see [DCO.md](https://github.com/somaz94/.github/blob/main/DCO.md)',
+              '- Tests are added/updated, or not applicable',
+              '- Docs/README are updated, or not applicable',
+              '- CI is green',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });

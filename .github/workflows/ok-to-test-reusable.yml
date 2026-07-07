@@ -1,0 +1,87 @@
+name: ok-to-test
+
+# Reusable "/ok-to-test" command gate for CI on fork pull requests.
+# Each repository calls this with a tiny stub:
+#
+#   on:
+#     issue_comment:
+#       types: [created]
+#   jobs:
+#     ok-to-test:
+#       uses: somaz94/.github/.github/workflows/ok-to-test-reusable.yml@main
+#
+# Fork pull requests get a read-only token and no secrets, so secret-requiring
+# or expensive CI cannot (and should not) run automatically. A maintainer
+# reviews the diff and comments `/ok-to-test`; this workflow verifies the
+# commenter has write access and, if so, applies the `ok-to-test` label. The
+# repository's CI then gates its risky jobs on that label, e.g.:
+#
+#   on:
+#     pull_request:
+#       types: [opened, synchronize, reopened, labeled]
+#   jobs:
+#     e2e:
+#       if: >
+#         github.event.pull_request.head.repo.full_name == github.repository ||
+#         contains(github.event.pull_request.labels.*.name, 'ok-to-test')
+
+on:
+  workflow_call:
+    inputs:
+      command:
+        description: 'Trigger phrase the comment must start with.'
+        required: false
+        type: string
+        default: '/ok-to-test'
+      label:
+        description: 'Label applied when the command is authorized.'
+        required: false
+        type: string
+        default: 'ok-to-test'
+
+jobs:
+  ok-to-test:
+    # Only act on pull-request comments that start with the command. The rest
+    # of every issue/PR comment in the repo short-circuits here, so no runner
+    # spins up for unrelated chatter.
+    if: >
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, inputs.command)
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Authorize commenter and apply label
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const label = `${{ inputs.label }}`;
+            const commenter = context.payload.comment.user.login;
+            const issue_number = context.payload.issue.number;
+            const comment_id = context.payload.comment.id;
+
+            // Verify the commenter has write access. read/none is rejected so
+            // an arbitrary contributor cannot self-approve CI on their own PR.
+            const { data: perm } = await github.rest.repos
+              .getCollaboratorPermissionLevel({ owner, repo, username: commenter });
+            if (!['admin', 'write'].includes(perm.permission)) {
+              await github.rest.reactions.createForIssueComment({
+                owner, repo, comment_id, content: 'confused',
+              });
+              core.setFailed(
+                `@${commenter} (${perm.permission}) lacks write access — ${label} not applied.`,
+              );
+              return;
+            }
+
+            // Authorized: apply the label (re-triggers label-gated CI) and
+            // acknowledge with a 👍 on the command comment.
+            await github.rest.issues.addLabels({
+              owner, repo, issue_number, labels: [label],
+            });
+            await github.rest.reactions.createForIssueComment({
+              owner, repo, comment_id, content: '+1',
+            });
