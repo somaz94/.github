@@ -40,7 +40,7 @@ jobs:
         uses: somaz94/multi-git-mirror@v1
         with:
           targets: |
-            gitlab::https://gitlab.com/backup6695808/.github.git
+            gitlab::https://gitlab.com/backup6695808/github-setting.git
           gitlab_token: ${{ secrets.GITLAB_TOKEN }}
           mirror_branches: 'all'
           mirror_tags: 'true'
