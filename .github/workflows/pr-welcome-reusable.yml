@@ -55,6 +55,7 @@ jobs:
               '',
               'A maintainer will review it soon. In the meantime, please make sure:',
               '',
+              '- The PR title follows [Conventional Commits](https://www.conventionalcommits.org/) (`feat:` / `fix:` / `docs:` / ...)',
               '- All commits are signed off (`git commit -s`) — see [DCO.md](https://github.com/somaz94/.github/blob/main/DCO.md)',
               '- Tests are added/updated, or not applicable',
               '- Docs/README are updated, or not applicable',
