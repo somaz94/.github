@@ -1,0 +1,15 @@
+name: Sync Labels
+
+# This repo dogfoods its own reusable label sync — the canonical set in
+# .github/labels.yml is applied here too.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1'   # weekly, Monday 00:00 UTC
+
+permissions:
+  issues: write
+
+jobs:
+  labels:
+    uses: somaz94/.github/.github/workflows/labels-sync-reusable.yml@main
