@@ -37,4 +37,6 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: toshimaru/auto-author-assign@v3
+      # This action publishes only full-semver tags (no sliding major), so it
+      # is pinned to an exact version rather than @v3.
+      - uses: toshimaru/auto-author-assign@v3.0.3
