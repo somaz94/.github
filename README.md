@@ -25,6 +25,9 @@ account that does not provide its own copy.
 | [`.github/workflows/contributors-reusable.yml`](.github/workflows/contributors-reusable.yml) | Reusable `CONTRIBUTORS.md` generator. |
 | [`.github/workflows/semantic-pr-reusable.yml`](.github/workflows/semantic-pr-reusable.yml) | Reusable Conventional Commits check for pull-request titles. |
 | [`.github/workflows/labels-sync-reusable.yml`](.github/workflows/labels-sync-reusable.yml) | Reusable label sync — applies the canonical `.github/labels.yml` to each repo. |
+| [`.github/workflows/lock-threads-reusable.yml`](.github/workflows/lock-threads-reusable.yml) | Reusable lock for long-closed issues and pull requests. |
+| [`.github/workflows/pr-size-labeler-reusable.yml`](.github/workflows/pr-size-labeler-reusable.yml) | Reusable PR size labeler (`size/xs` .. `size/xl`). |
+| [`.github/workflows/auto-assign-reusable.yml`](.github/workflows/auto-assign-reusable.yml) | Reusable auto-assign — sets the PR author as assignee. |
 | [`.github/labels.yml`](.github/labels.yml) | Canonical label set synced into every repo by the label-sync workflow. |
 | [`.github/workflows/gitlab-mirror.yml`](.github/workflows/gitlab-mirror.yml) | This repo's own one-way backup mirror to GitLab (not a reusable workflow). |
 
@@ -278,3 +281,80 @@ alone); flip it with `with: { skip-delete: false }` to prune anything not in
 the file, or preview with `with: { dry-run: true }`. This is what backs the
 `ok-to-test`, `stale`, `pinned`, `security`, and `on-hold` labels the other
 workflows rely on.
+
+<br/>
+
+## Enabling the thread lock
+
+Add this stub at `.github/workflows/lock-threads.yml` in the target repository:
+
+```yaml
+name: Lock Threads
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  lock:
+    uses: somaz94/.github/.github/workflows/lock-threads-reusable.yml@main
+```
+
+Long-closed issues and pull requests are locked so resolved threads stop
+collecting drive-by comments — the natural sibling of the stale sweeper.
+Defaults: lock after 365 days of inactivity, no comment. Override
+`issue-inactive-days`, `pr-inactive-days`, `issue-comment`, `pr-comment`, or
+`process-only` (`issues` / `prs`) via `with:`.
+
+<br/>
+
+## Enabling PR size labels
+
+Add this stub at `.github/workflows/pr-size.yml` in the target repository:
+
+```yaml
+name: PR Size Labeler
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  size:
+    uses: somaz94/.github/.github/workflows/pr-size-labeler-reusable.yml@main
+```
+
+Each PR gets a `size/xs` .. `size/xl` label by changed-line count for quick
+triage. Those labels live in [`.github/labels.yml`](.github/labels.yml), so
+label sync gives them consistent colors. Tune the thresholds
+(`xs-max-size`, `s-max-size`, `m-max-size`, `l-max-size`), require a split with
+`with: { fail-if-xl: true }`, or exclude files with `with: { files-to-ignore: "package-lock.json" }`.
+
+<br/>
+
+## Enabling auto-assign
+
+Add this stub at `.github/workflows/auto-assign.yml` in the target repository:
+
+```yaml
+name: Auto Assign
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  assign:
+    uses: somaz94/.github/.github/workflows/auto-assign-reusable.yml@main
+```
+
+The pull-request author is set as the assignee so open PRs always show an
+owner. Bot-authored PRs (Dependabot, Renovate, ...) are skipped.

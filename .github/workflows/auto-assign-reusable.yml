@@ -1,0 +1,40 @@
+name: Auto Assign
+
+# Reusable auto-assign. Sets the pull-request author as the assignee so open
+# PRs always show an owner in the list. Each repository calls this with a tiny
+# stub:
+#
+#   on:
+#     pull_request_target:
+#       types: [opened, reopened]
+#   permissions:
+#     pull-requests: write
+#   jobs:
+#     assign:
+#       uses: somaz94/.github/.github/workflows/auto-assign-reusable.yml@main
+#
+# The stub MUST declare `pull-requests: write` — a called workflow's
+# permissions cannot exceed the caller's, so omitting it makes the run fail to
+# start. The trigger is `pull_request_target` so fork PRs are assigned too;
+# this action only sets an assignee from event metadata — it never checks out
+# or runs PR-authored code — so `pull_request_target` is safe here.
+
+on:
+  workflow_call: {}
+
+# One assignment per PR; the latest event wins.
+concurrency:
+  group: auto-assign-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  assign:
+    # Skip bot-authored PRs (Dependabot, Renovate, ...) — matching the PR
+    # welcome workflow's bot-skip convention.
+    if: ${{ github.event.pull_request.user.type != 'Bot' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: toshimaru/auto-author-assign@v3

@@ -1,0 +1,73 @@
+name: Lock Threads
+
+# Reusable lock for old closed issues and pull requests, so resolved threads
+# stop collecting drive-by "me too" comments. Each repository calls this with a
+# tiny stub:
+#
+#   on:
+#     schedule:
+#       - cron: '0 1 * * *'
+#     workflow_dispatch:
+#   permissions:
+#     issues: write
+#     pull-requests: write
+#   jobs:
+#     lock:
+#       uses: somaz94/.github/.github/workflows/lock-threads-reusable.yml@main
+#
+# The stub MUST declare those permissions — a called workflow's permissions
+# cannot exceed the caller's, so omitting them makes the run fail to start.
+# The schedule/dispatch trigger lives in the stub; the reusable only exposes
+# the knobs below. This is the natural sibling of the stale-issue sweeper:
+# stale closes inactive threads, this locks long-closed ones.
+
+on:
+  workflow_call:
+    inputs:
+      issue-inactive-days:
+        description: 'Days a closed issue must be inactive before it is locked.'
+        required: false
+        type: number
+        default: 365
+      pr-inactive-days:
+        description: 'Days a closed pull request must be inactive before it is locked.'
+        required: false
+        type: number
+        default: 365
+      issue-comment:
+        description: 'Optional comment posted before locking an issue.'
+        required: false
+        type: string
+        default: ''
+      pr-comment:
+        description: 'Optional comment posted before locking a pull request.'
+        required: false
+        type: string
+        default: ''
+      process-only:
+        description: "Restrict processing to one type: 'issues' or 'prs'. Empty = both."
+        required: false
+        type: string
+        default: ''
+
+# Daily schedule + manual dispatch could overlap. Serialize so two lock passes
+# don't race.
+concurrency:
+  group: lock-threads
+  cancel-in-progress: false
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: dessant/lock-threads@v6
+        with:
+          issue-inactive-days: ${{ inputs.issue-inactive-days }}
+          pr-inactive-days: ${{ inputs.pr-inactive-days }}
+          issue-comment: ${{ inputs.issue-comment }}
+          pr-comment: ${{ inputs.pr-comment }}
+          process-only: ${{ inputs.process-only }}

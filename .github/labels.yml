@@ -66,3 +66,24 @@
 - name: on-hold
   color: fbca04
   description: Intentionally paused; exempt from the stale sweeper
+
+# --- PR size (attached by pr-size-labeler-reusable.yml) ---------------------
+- name: size/xs
+  color: '009900'
+  description: Extra small PR (fewest changed lines)
+
+- name: size/s
+  color: 77bb00
+  description: Small PR
+
+- name: size/m
+  color: eebb00
+  description: Medium PR
+
+- name: size/l
+  color: ee9900
+  description: Large PR
+
+- name: size/xl
+  color: ee0000
+  description: Extra large PR; consider splitting

@@ -1,0 +1,83 @@
+name: PR Size Labeler
+
+# Reusable PR size labeler. Attaches one of size/xs .. size/xl to each pull
+# request based on the number of changed lines, for quick review triage. Each
+# repository calls this with a tiny stub:
+#
+#   on:
+#     pull_request:
+#       types: [opened, synchronize, reopened]
+#   permissions:
+#     pull-requests: write
+#   jobs:
+#     size:
+#       uses: somaz94/.github/.github/workflows/pr-size-labeler-reusable.yml@main
+#
+# The stub MUST declare `pull-requests: write` — a called workflow's
+# permissions cannot exceed the caller's, so omitting it makes the run fail to
+# start. The size labels (size/xs .. size/xl) live in this repo's canonical
+# .github/labels.yml, so label-sync gives them consistent colors; this workflow
+# only attaches them. Note: `pull_request` (not `pull_request_target`) means a
+# fork PR's token is read-only and gets no size label — that is the safe
+# trade-off, since sizing needs no secrets.
+
+on:
+  workflow_call:
+    inputs:
+      xs-max-size:
+        description: 'Max changed lines for size/xs.'
+        required: false
+        type: number
+        default: 10
+      s-max-size:
+        description: 'Max changed lines for size/s.'
+        required: false
+        type: number
+        default: 100
+      m-max-size:
+        description: 'Max changed lines for size/m.'
+        required: false
+        type: number
+        default: 500
+      l-max-size:
+        description: 'Max changed lines for size/l. Above this is size/xl.'
+        required: false
+        type: number
+        default: 1000
+      fail-if-xl:
+        description: 'Fail the check when the PR is size/xl (forces a split before merge).'
+        required: false
+        type: boolean
+        default: false
+      files-to-ignore:
+        description: 'Whitespace-separated files excluded from the size count (e.g. lockfiles).'
+        required: false
+        type: string
+        default: ''
+
+# One sizing per PR at a time; the latest push wins.
+concurrency:
+  group: pr-size-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  size:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: codelytv/pr-size-labeler@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          xs_label: 'size/xs'
+          s_label: 'size/s'
+          m_label: 'size/m'
+          l_label: 'size/l'
+          xl_label: 'size/xl'
+          xs_max_size: ${{ inputs.xs-max-size }}
+          s_max_size: ${{ inputs.s-max-size }}
+          m_max_size: ${{ inputs.m-max-size }}
+          l_max_size: ${{ inputs.l-max-size }}
+          fail_if_xl: ${{ inputs.fail-if-xl }}
+          files_to_ignore: ${{ inputs.files-to-ignore }}
