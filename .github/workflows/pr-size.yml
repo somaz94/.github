@@ -1,0 +1,13 @@
+name: PR Size Labeler
+
+# This repo dogfoods its own reusable PR size labeler.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  size:
+    uses: somaz94/.github/.github/workflows/pr-size-labeler-reusable.yml@main
