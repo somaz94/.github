@@ -1,0 +1,64 @@
+name: Semantic PR
+
+# Reusable Conventional Commits check for pull-request titles. Each repository
+# calls this with a tiny stub:
+#
+#   on:
+#     pull_request_target:
+#       types: [opened, edited, reopened, synchronize]
+#   permissions:
+#     pull-requests: read
+#   jobs:
+#     semantic-pr:
+#       uses: somaz94/.github/.github/workflows/semantic-pr-reusable.yml@main
+#
+# The stub MUST declare that permission — a called workflow's permissions
+# cannot exceed the caller's, so omitting it makes the run fail to start.
+#
+# When a repository squash-merges, the PR title becomes the squash commit's
+# subject line, so validating the title here keeps the merged history in
+# Conventional Commits form (feat: / fix: / docs: / ...). The trigger is
+# `pull_request_target` so titles on fork pull requests are validated too;
+# this job only reads the title from event metadata — it never checks out or
+# runs PR-authored code — so `pull_request_target` is safe here.
+
+on:
+  workflow_call:
+    inputs:
+      types:
+        description: 'Allowed Conventional Commit types, one per line.'
+        required: false
+        type: string
+        default: |
+          feat
+          fix
+          docs
+          refactor
+          test
+          ci
+          chore
+      require-scope:
+        description: 'Require a scope in the title, e.g. feat(api): ....'
+        required: false
+        type: boolean
+        default: false
+
+# One validation per pull request. cancel-in-progress: true is safe — a rapid
+# title edit should just let the latest run decide the check status.
+concurrency:
+  group: semantic-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  semantic-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Validate PR title against Conventional Commits
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: ${{ inputs.types }}
+          requireScope: ${{ inputs.require-scope }}

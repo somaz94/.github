@@ -1,0 +1,68 @@
+# Canonical label set for all somaz94 repositories.
+# Synced into each repo by labels-sync-reusable.yml. Edit here, and the next
+# scheduled/dispatched sync rolls the change out everywhere.
+#
+# Format: crazy-max/ghaction-github-labeler (name / color / description).
+
+# --- Triage: type -----------------------------------------------------------
+- name: bug
+  color: d73a4a
+  description: Something isn't working
+
+- name: enhancement
+  color: a2eeef
+  description: New feature or request
+
+- name: documentation
+  color: 0075ca
+  description: Improvements or additions to documentation
+
+- name: question
+  color: d876e3
+  description: Further information is requested
+
+# --- Triage: disposition ----------------------------------------------------
+- name: duplicate
+  color: cfd3d7
+  description: This issue or pull request already exists
+
+- name: invalid
+  color: e4e669
+  description: This doesn't seem right
+
+- name: wontfix
+  color: ffffff
+  description: This will not be worked on
+
+- name: help wanted
+  color: '008672'
+  description: Extra attention is needed
+
+- name: good first issue
+  color: 7057ff
+  description: Good for newcomers
+
+- name: dependencies
+  color: '0366d6'
+  description: Pull requests that update a dependency file
+
+# --- Automation labels (referenced by the reusable workflows) ---------------
+- name: ok-to-test
+  color: 0e8a16
+  description: Approve CI to run on this fork pull request
+
+- name: stale
+  color: ededed
+  description: No recent activity; will be closed if it stays inactive
+
+- name: pinned
+  color: 5319e7
+  description: Exempt from the stale sweeper
+
+- name: security
+  color: b60205
+  description: Security-related; exempt from the stale sweeper
+
+- name: on-hold
+  color: fbca04
+  description: Intentionally paused; exempt from the stale sweeper

@@ -23,6 +23,9 @@ account that does not provide its own copy.
 | [`.github/workflows/stale-issues-reusable.yml`](.github/workflows/stale-issues-reusable.yml) | Reusable stale-issue sweeper (mark stale, then close after inactivity). |
 | [`.github/workflows/dependabot-auto-merge-reusable.yml`](.github/workflows/dependabot-auto-merge-reusable.yml) | Reusable Dependabot auto-merge for minor/patch bumps. |
 | [`.github/workflows/contributors-reusable.yml`](.github/workflows/contributors-reusable.yml) | Reusable `CONTRIBUTORS.md` generator. |
+| [`.github/workflows/semantic-pr-reusable.yml`](.github/workflows/semantic-pr-reusable.yml) | Reusable Conventional Commits check for pull-request titles. |
+| [`.github/workflows/labels-sync-reusable.yml`](.github/workflows/labels-sync-reusable.yml) | Reusable label sync — applies the canonical `.github/labels.yml` to each repo. |
+| [`.github/labels.yml`](.github/labels.yml) | Canonical label set synced into every repo by the label-sync workflow. |
 | [`.github/workflows/gitlab-mirror.yml`](.github/workflows/gitlab-mirror.yml) | This repo's own one-way backup mirror to GitLab (not a reusable workflow). |
 
 <br/>
@@ -218,3 +221,60 @@ The stub MUST pass `secrets: inherit` — the checkout/commit steps push with
 `PAT_TOKEN` (a personal access token with push access), which the reusable
 receives as a named secret. Tune `output_file`, `format`, `columns`,
 `exclude`, `commit_message`, or `branch` via `with:`.
+
+<br/>
+
+## Enabling the PR title check
+
+Add this stub at `.github/workflows/semantic-pr.yml` in the target repository:
+
+```yaml
+name: Semantic PR
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  semantic-pr:
+    uses: somaz94/.github/.github/workflows/semantic-pr-reusable.yml@main
+```
+
+The PR title is validated against Conventional Commits. Because a squash merge
+turns the title into the commit subject, this keeps the merged history in
+`feat:` / `fix:` / `docs:` form. The default type list is
+`feat, fix, docs, refactor, test, ci, chore` — override it with
+`with: { types: "feat\nfix\n..." }`, or require a scope with
+`with: { require-scope: true }`.
+
+<br/>
+
+## Enabling label sync
+
+Add this stub at `.github/workflows/labels.yml` in the target repository:
+
+```yaml
+name: Sync Labels
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1'   # weekly, Monday 00:00 UTC
+
+permissions:
+  issues: write
+
+jobs:
+  labels:
+    uses: somaz94/.github/.github/workflows/labels-sync-reusable.yml@main
+```
+
+The canonical set lives in [`.github/labels.yml`](.github/labels.yml) of this
+repo and is fetched at run time, so a rename or recolor there rolls out to
+every repo on its next sync. `skip-delete` defaults to `true` (additive — the
+sync creates/updates the canonical labels and leaves repo-specific labels
+alone); flip it with `with: { skip-delete: false }` to prune anything not in
+the file, or preview with `with: { dry-run: true }`. This is what backs the
+`ok-to-test`, `stale`, `pinned`, `security`, and `on-hold` labels the other
+workflows rely on.

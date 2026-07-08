@@ -1,0 +1,79 @@
+name: Sync Labels
+
+# Reusable label sync. Applies the canonical label set from THIS repository's
+# `.github/labels.yml` to the calling repository, so every somaz94 repo shares
+# one label vocabulary (the `ok-to-test`, `stale`, `pinned`, `security`, and
+# `on-hold` labels that the other reusable workflows depend on all live there).
+# Each repository calls this with a tiny stub:
+#
+#   on:
+#     workflow_dispatch:
+#     schedule:
+#       - cron: '0 0 * * 1'   # weekly, Monday 00:00 UTC
+#   permissions:
+#     issues: write
+#   jobs:
+#     labels:
+#       uses: somaz94/.github/.github/workflows/labels-sync-reusable.yml@main
+#
+# The stub MUST declare `issues: write` — a called workflow's permissions
+# cannot exceed the caller's, so omitting it makes the run fail to start
+# (label endpoints live under the Issues permission).
+#
+# The canonical file is fetched from somaz94/.github at run time, so a label
+# rename/recolor there rolls out to every repo on its next sync. `skip-delete`
+# defaults to true: the sync only creates/updates the canonical labels and
+# leaves any repo-specific labels untouched.
+
+on:
+  workflow_call:
+    inputs:
+      yaml-file:
+        description: 'Path to the label definitions inside the fetched somaz94/.github checkout.'
+        required: false
+        type: string
+        default: '_central/.github/labels.yml'
+      ref:
+        description: 'Ref of somaz94/.github to fetch the canonical labels from.'
+        required: false
+        type: string
+        default: 'main'
+      skip-delete:
+        description: 'Keep labels that are not in the canonical file (additive sync).'
+        required: false
+        type: boolean
+        default: true
+      dry-run:
+        description: 'Log the planned changes without applying them.'
+        required: false
+        type: boolean
+        default: false
+
+# One sync per repository at a time. Overlapping runs would race on the same
+# label set; serialize them.
+concurrency:
+  group: labels-sync-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  labels:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      # Fetch the canonical label definitions from this repo into a subdir.
+      # The labeler still targets the CALLER repo via GITHUB_TOKEN — this
+      # checkout only supplies the yaml file.
+      - name: Fetch canonical labels
+        uses: actions/checkout@v7
+        with:
+          repository: somaz94/.github
+          ref: ${{ inputs.ref }}
+          path: _central
+
+      - name: Sync labels
+        uses: crazy-max/ghaction-github-labeler@v5
+        with:
+          yaml-file: ${{ inputs.yaml-file }}
+          skip-delete: ${{ inputs.skip-delete }}
+          dry-run: ${{ inputs.dry-run }}
