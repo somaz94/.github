@@ -14,6 +14,7 @@ account that does not provide its own copy.
 | [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | Contributor Covenant 2.1 — default code of conduct. |
 | [`.github/FUNDING.yml`](.github/FUNDING.yml) | Default Sponsor button target (inherited by all repos). |
 | [`SECURITY.md`](SECURITY.md) | Default security policy and private vulnerability reporting path. |
+| [`SUPPORT.md`](SUPPORT.md) | Default support guide — where to ask questions and get help. |
 | [`DCO.md`](DCO.md) | Developer Certificate of Origin — used instead of a CLA. |
 | [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | Default pull-request template. |
 | [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/) | Default bug-report / feature-request issue forms + chooser config. |

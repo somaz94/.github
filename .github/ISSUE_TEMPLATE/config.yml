@@ -3,6 +3,6 @@ contact_links:
   - name: Security vulnerability
     url: https://github.com/somaz94/.github/blob/main/SECURITY.md
     about: Please report security issues privately — do not open a public issue.
-  - name: Question / discussion
-    url: https://github.com/somaz94
-    about: For general questions, start a discussion on the relevant repository.
+  - name: Questions and help
+    url: https://github.com/somaz94/.github/blob/main/SUPPORT.md
+    about: See the support guide for how to ask questions and get help.
