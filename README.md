@@ -19,6 +19,11 @@ account that does not provide its own copy.
 | [`.github/workflows/dco-reusable.yml`](.github/workflows/dco-reusable.yml) | Reusable DCO check, called by each repo. |
 | [`.github/workflows/pr-welcome-reusable.yml`](.github/workflows/pr-welcome-reusable.yml) | Reusable pull-request greeting, called by each repo. |
 | [`.github/workflows/ok-to-test-reusable.yml`](.github/workflows/ok-to-test-reusable.yml) | Reusable `/ok-to-test` command gate for CI on fork pull requests. |
+| [`.github/workflows/issue-greeting-reusable.yml`](.github/workflows/issue-greeting-reusable.yml) | Reusable greeting comment posted when an issue is opened. |
+| [`.github/workflows/stale-issues-reusable.yml`](.github/workflows/stale-issues-reusable.yml) | Reusable stale-issue sweeper (mark stale, then close after inactivity). |
+| [`.github/workflows/dependabot-auto-merge-reusable.yml`](.github/workflows/dependabot-auto-merge-reusable.yml) | Reusable Dependabot auto-merge for minor/patch bumps. |
+| [`.github/workflows/contributors-reusable.yml`](.github/workflows/contributors-reusable.yml) | Reusable `CONTRIBUTORS.md` generator. |
+| [`.github/workflows/gitlab-mirror.yml`](.github/workflows/gitlab-mirror.yml) | This repo's own one-way backup mirror to GitLab (not a reusable workflow). |
 
 <br/>
 
@@ -104,3 +109,112 @@ jobs:
     runs-on: ubuntu-latest
     # ...
 ```
+
+<br/>
+
+## Enabling the issue greeting
+
+Add this stub at `.github/workflows/issue-greeting.yml` in the target repository:
+
+```yaml
+name: Issue Greeting Bot
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  greeting:
+    uses: somaz94/.github/.github/workflows/issue-greeting-reusable.yml@main
+```
+
+Pass a custom body with `with: { message: "..." }` to override the default
+greeting. Pull-request greetings are handled separately by the PR welcome
+workflow above.
+
+<br/>
+
+## Enabling the stale-issue sweeper
+
+Add this stub at `.github/workflows/stale-issues.yml` in the target repository.
+The schedule/dispatch trigger lives in the stub; the reusable only exposes the
+tuning knobs:
+
+```yaml
+name: Close Stale Issues
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    uses: somaz94/.github/.github/workflows/stale-issues-reusable.yml@main
+```
+
+Defaults: mark stale after 30 days of inactivity, close 7 days later, exempt
+the `pinned` / `security` / `on-hold` labels. Override any of
+`days-before-stale`, `days-before-close`, `stale-issue-message`,
+`close-issue-message`, `stale-issue-label`, or `exempt-issue-labels` via
+`with:`.
+
+<br/>
+
+## Enabling Dependabot auto-merge
+
+Add this stub at `.github/workflows/dependabot-auto-merge.yml` in the target
+repository:
+
+```yaml
+name: Dependabot auto-merge
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    uses: somaz94/.github/.github/workflows/dependabot-auto-merge-reusable.yml@main
+```
+
+Only `version-update:semver-minor` and `semver-patch` bumps are auto-merged;
+major bumps are left for a human. The default merge method is `squash` —
+override it with `with: { merge-method: rebase }`. Repo-level auto-merge must
+be enabled in the target repository's settings.
+
+<br/>
+
+## Enabling the CONTRIBUTORS.md generator
+
+Add this stub at `.github/workflows/contributors.yml` in the target repository:
+
+```yaml
+name: Generate Contributors
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Generate changelog"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  update_contributors:
+    uses: somaz94/.github/.github/workflows/contributors-reusable.yml@main
+    secrets: inherit
+```
+
+The stub MUST pass `secrets: inherit` — the checkout/commit steps push with
+`PAT_TOKEN` (a personal access token with push access), which the reusable
+receives as a named secret. Tune `output_file`, `format`, `columns`,
+`exclude`, `commit_message`, or `branch` via `with:`.
