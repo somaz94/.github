@@ -1,0 +1,129 @@
+name: retest
+
+# Reusable "/retest" command to re-run failed CI on a pull request.
+# Each repository calls this with a tiny stub:
+#
+#   on:
+#     issue_comment:
+#       types: [created]
+#   permissions:
+#     actions: write
+#     pull-requests: write
+#     issues: write
+#   jobs:
+#     retest:
+#       uses: somaz94/.github/.github/workflows/retest-reusable.yml@main
+#
+# The stub MUST declare those permissions — a called workflow's permissions
+# cannot exceed the caller's, so omitting them makes the run fail to start.
+# `actions: write` is required to re-run workflow jobs.
+#
+# A maintainer (or any write-access collaborator) comments `/retest` on a PR;
+# this workflow verifies the commenter has write access and re-runs the failed
+# jobs of the latest workflow run for each workflow on the PR head commit.
+# Successful and skipped runs are left untouched. This mirrors Prow's /retest
+# and unlocks re-runs for contributors who lack the Actions "Re-run" button.
+
+on:
+  workflow_call:
+    inputs:
+      command:
+        description: 'Trigger phrase the comment must start with.'
+        required: false
+        type: string
+        default: '/retest'
+
+jobs:
+  retest:
+    # Only pull-request comments are relevant; comments on plain issues are
+    # ignored. The command-prefix match is done inside the step (a reusable
+    # job-level `if` that reads `inputs` fails to compile), so the job
+    # condition stays a simple, compile-safe expression.
+    if: ${{ github.event.issue.pull_request }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Authorize commenter and re-run failed jobs
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const command = `${{ inputs.command }}`;
+            const commenter = context.payload.comment.user.login;
+            const issue_number = context.payload.issue.number;
+            const comment_id = context.payload.comment.id;
+
+            // Ignore comments that are not the trigger command.
+            if (!context.payload.comment.body.startsWith(command)) {
+              core.info(`Comment does not start with "${command}" — ignoring.`);
+              return;
+            }
+
+            // Verify the commenter has write access. read/none is rejected so
+            // an arbitrary contributor cannot re-run CI on their own PR.
+            const { data: perm } = await github.rest.repos
+              .getCollaboratorPermissionLevel({ owner, repo, username: commenter });
+            if (!['admin', 'write'].includes(perm.permission)) {
+              await github.rest.reactions.createForIssueComment({
+                owner, repo, comment_id, content: 'confused',
+              });
+              core.setFailed(
+                `@${commenter} (${perm.permission}) lacks write access — /retest denied.`,
+              );
+              return;
+            }
+
+            // Acknowledge the command with a 👀 while work is in progress.
+            await github.rest.reactions.createForIssueComment({
+              owner, repo, comment_id, content: 'eyes',
+            });
+
+            // Resolve the PR head commit the CI ran against.
+            const { data: pr } = await github.rest.pulls.get({
+              owner, repo, pull_number: issue_number,
+            });
+            const head_sha = pr.head.sha;
+
+            // List every workflow run for that head SHA and keep only the
+            // latest run per workflow (older attempts are ignored).
+            const runs = await github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              { owner, repo, head_sha, per_page: 100 },
+            );
+            const latest = new Map();
+            for (const run of runs) {
+              const prev = latest.get(run.workflow_id);
+              if (!prev || run.run_number > prev.run_number) latest.set(run.workflow_id, run);
+            }
+
+            // Re-run the failed jobs of any latest run that did not succeed.
+            // Successful and skipped runs need no retest.
+            const failed = [...latest.values()].filter(
+              (r) => r.status === 'completed'
+                && r.conclusion !== 'success'
+                && r.conclusion !== 'skipped',
+            );
+
+            if (failed.length === 0) {
+              core.info(`No failed workflow runs to retest for ${head_sha}.`);
+              await github.rest.reactions.createForIssueComment({
+                owner, repo, comment_id, content: 'confused',
+              });
+              return;
+            }
+
+            for (const run of failed) {
+              core.info(`Re-running failed jobs: ${run.name} (#${run.run_number}).`);
+              await github.rest.actions.reRunWorkflowFailedJobs({
+                owner, repo, run_id: run.id,
+              });
+            }
+
+            // Confirm with a 👍 once the re-runs are queued.
+            await github.rest.reactions.createForIssueComment({
+              owner, repo, comment_id, content: '+1',
+            });
