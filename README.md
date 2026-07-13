@@ -15,10 +15,8 @@ account that does not provide its own copy.
 | [`.github/FUNDING.yml`](.github/FUNDING.yml) | Default Sponsor button target (inherited by all repos). |
 | [`SECURITY.md`](SECURITY.md) | Default security policy and private vulnerability reporting path. |
 | [`SUPPORT.md`](SUPPORT.md) | Default support guide — where to ask questions and get help. |
-| [`DCO.md`](DCO.md) | Developer Certificate of Origin — used instead of a CLA. |
 | [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | Default pull-request template. |
 | [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/) | Default bug-report / feature-request issue forms + chooser config. |
-| [`.github/workflows/dco-reusable.yml`](.github/workflows/dco-reusable.yml) | Reusable DCO check, called by each repo. |
 | [`.github/workflows/pr-welcome-reusable.yml`](.github/workflows/pr-welcome-reusable.yml) | Reusable pull-request greeting, called by each repo. |
 | [`.github/workflows/ok-to-test-reusable.yml`](.github/workflows/ok-to-test-reusable.yml) | Reusable `/ok-to-test` command gate for CI on fork pull requests. |
 | [`.github/workflows/issue-greeting-reusable.yml`](.github/workflows/issue-greeting-reusable.yml) | Reusable greeting comment posted when an issue is opened. |
@@ -32,25 +30,6 @@ account that does not provide its own copy.
 | [`.github/workflows/auto-assign-reusable.yml`](.github/workflows/auto-assign-reusable.yml) | Reusable auto-assign — sets the PR author as assignee. |
 | [`.github/labels.yml`](.github/labels.yml) | Canonical label set synced into every repo by the label-sync workflow. |
 | [`.github/workflows/gitlab-mirror.yml`](.github/workflows/gitlab-mirror.yml) | This repo's own one-way backup mirror to GitLab (not a reusable workflow). |
-
-<br/>
-
-## Enabling the DCO check in a repository
-
-Add this stub at `.github/workflows/dco.yml` in the target repository:
-
-```yaml
-name: DCO
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-
-jobs:
-  dco:
-    uses: somaz94/.github/.github/workflows/dco-reusable.yml@main
-```
-
-The shared logic lives here, so the check is maintained in one place.
 
 <br/>
 

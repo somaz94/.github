@@ -11,7 +11,6 @@
 ## Checklist
 
 - [ ] PR title follows [Conventional Commits](https://www.conventionalcommits.org/) (`feat:` / `fix:` / `docs:` / ...)
-- [ ] All commits are signed off (`git commit -s`) — see [DCO.md](https://github.com/somaz94/.github/blob/main/DCO.md)
 - [ ] Tests added/updated, or not applicable
 - [ ] Docs/README updated, or not applicable
 - [ ] CI is green
