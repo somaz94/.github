@@ -72,7 +72,7 @@ jobs:
           path: _central
 
       - name: Sync labels
-        uses: crazy-max/ghaction-github-labeler@v5
+        uses: crazy-max/ghaction-github-labeler@v6
         with:
           yaml-file: ${{ inputs.yaml-file }}
           skip-delete: ${{ inputs.skip-delete }}
