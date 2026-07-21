@@ -45,6 +45,16 @@ on:
         required: false
         type: boolean
         default: false
+      skip-head-ref-prefixes:
+        description: |
+          Newline-separated head-branch name prefixes whose pull requests skip
+          title validation — e.g. a repo's own E2E self-test branches. A branch
+          is exempt when its name starts with any listed prefix. Empty (the
+          default) validates every pull request, so existing callers are
+          unaffected.
+        required: false
+        type: string
+        default: ''
 
 # One validation per pull request. cancel-in-progress: true is safe — a rapid
 # title edit should just let the latest run decide the check status.
@@ -58,7 +68,27 @@ jobs:
     permissions:
       pull-requests: read
     steps:
+      - name: Check whether the head branch is exempt from validation
+        id: skip-check
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          SKIP_PREFIXES: ${{ inputs.skip-head-ref-prefixes }}
+        run: |
+          set -euo pipefail
+          skip=false
+          while IFS= read -r prefix; do
+            [ -z "$prefix" ] && continue
+            case "$HEAD_REF" in
+              "$prefix"*) skip=true; break ;;
+            esac
+          done <<< "$SKIP_PREFIXES"
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+          if [ "$skip" = "true" ]; then
+            echo "Head branch '$HEAD_REF' matches a skip prefix — skipping PR-title validation."
+          fi
+
       - name: Validate PR title against Conventional Commits
+        if: steps.skip-check.outputs.skip != 'true'
         uses: amannn/action-semantic-pull-request@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
