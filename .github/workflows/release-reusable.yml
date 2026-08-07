@@ -1,0 +1,164 @@
+name: Create release
+
+# Reusable release pipeline for the Docker-based action repositories. Each one
+# calls it with a stub:
+#
+#   on:
+#     push:
+#       tags:
+#         - "v[0-9]+.[0-9]+.[0-9]+"
+#     workflow_dispatch:
+#       inputs:
+#         image_tag:
+#           description: "Publish only the container image for this version (e.g. v1.2.0)."
+#           required: true
+#   permissions:
+#     contents: write
+#     pull-requests: write
+#   jobs:
+#     release:
+#       uses: somaz94/.github/.github/workflows/release-reusable.yml@main
+#       permissions:
+#         contents: write
+#         pull-requests: write
+#         packages: write
+#       secrets: inherit
+#
+# The stub MUST pass `secrets: inherit` and declare all three permissions: a
+# called workflow's permissions cannot exceed the caller's, so a missing
+# `packages: write` fails the image push rather than the run start, and a
+# missing `contents: write` blocks the release itself.
+#
+# `actions/checkout` inside a called workflow checks out the CALLER's
+# repository, so cliff.toml and the Dockerfile resolve to the repo being
+# released, not to somaz94/.github.
+
+on:
+  workflow_call:
+    inputs:
+      publish_image:
+        description: 'Build and push the action container image to GHCR. Set false for a repo whose action.yml still uses `image: Dockerfile`.'
+        required: false
+        type: boolean
+        default: true
+      platforms:
+        description: 'Platforms to build the image for. `image: Dockerfile` built for whatever the runner was; a registry reference resolves only to what was pushed, so dropping arm64 here breaks arm64 runners at pull time.'
+        required: false
+        type: string
+        default: 'linux/amd64,linux/arm64'
+      image_tag:
+        description: 'Publish the image under this version instead of the pushed tag, and skip the GitHub release. Used once per repository to seed the package before the first `docker://` release, since action.yml resolves its image at the moment a consumer runs the action — so on that first release the image must already exist when the tag lands.'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      PAT_TOKEN:
+        description: 'Personal access token with push access, used for checkout and for the major-tag update.'
+        required: true
+
+jobs:
+  publish-image:
+    name: "Publish image"
+    if: ${{ inputs.publish_image }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write  # push to ghcr.io
+    steps:
+      - name: "Check-out"
+        uses: actions/checkout@v7
+
+      - name: "Set up Buildx"
+        uses: docker/setup-buildx-action@v3
+
+      - name: "Log in to GHCR"
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Build and push"
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          platforms: ${{ inputs.platforms }}
+          tags: ghcr.io/${{ github.repository }}:${{ inputs.image_tag != '' && inputs.image_tag || github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    name: "Release"
+    runs-on: ubuntu-latest
+    # A release must not exist without the image it points at. A failed image
+    # push leaves the git tag orphaned, which is recoverable by deleting and
+    # re-tagging; a release published against a missing image is not, because
+    # consumers resolve it immediately.
+    #
+    # `always()` keeps this reachable when publish_image is false, which skips
+    # rather than succeeds the dependency.
+    needs: publish-image
+    if: ${{ always() && needs.publish-image.result != 'failure' && needs.publish-image.result != 'cancelled' && github.event_name == 'push' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: "Check-out"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Get previous semver tag
+        id: prev_tag
+        run: |
+          CURRENT_TAG="${{ github.ref_name }}"
+          PREVIOUS_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | grep -B1 "^${CURRENT_TAG}$" | head -n1)
+          if [ "$PREVIOUS_TAG" = "$CURRENT_TAG" ]; then
+            PREVIOUS_TAG=""
+          fi
+          echo "tag=${PREVIOUS_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog with git-cliff
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: RELEASE.md
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Append full changelog link
+        if: steps.prev_tag.outputs.tag != ''
+        run: |
+          echo "" >> RELEASE.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.prev_tag.outputs.tag }}...${{ github.ref_name }}" >> RELEASE.md
+
+      - name: "Create GitHub release"
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: RELEASE.md
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Update major version tag"
+        # somaz94/major-tag-action releases itself through this workflow, so
+        # for that one repository this step consumes the tag it produces. That
+        # is fine while `v1` exists and a deadlock the moment it does not: the
+        # run fails at job setup with "unable to resolve action ... unable to
+        # find version v1", and the only thing that recreates `v1` is this
+        # step. It happened on 2026-08-07, when a non-atomic tag move deleted
+        # the remote ref and then failed to push it back.
+        #
+        # Both halves are fixed in the action (single force push, git errors no
+        # longer swallowed). If it recurs, do not hand-create the tag: pin this
+        # line to the exact version being released, let it rebuild `v1`, then
+        # restore `@v1`.
+        uses: somaz94/major-tag-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          github_token: ${{ secrets.PAT_TOKEN }}
