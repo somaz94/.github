@@ -35,7 +35,7 @@ on:
         description: 'Comment posted when an issue is marked stale.'
         required: false
         type: string
-        default: 'This issue has been automatically marked as stale due to 30 days of inactivity. It will be closed automatically in 7 days if no further activity occurs.'
+        default: 'This issue has been automatically marked as stale due to inactivity. It will be closed if no further activity occurs.'
       close-issue-message:
         description: 'Comment posted when an issue is closed.'
         required: false
