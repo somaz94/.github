@@ -147,12 +147,11 @@ jobs:
     uses: somaz94/.github/.github/workflows/stale-issues-reusable.yml@main
 ```
 
-Defaults: mark stale after 30 days of inactivity, close 7 days later, exempt
-the `pinned` / `security` / `on-hold` labels. Override any of
-`days-before-stale`, `days-before-close`, `stale-issue-message`,
-`close-issue-message`, `stale-issue-label`, or `exempt-issue-labels` via
-`with:`. Pull requests are never swept; the knobs and exempt labels are
-issue-scoped.
+Inactive issues are marked stale, then closed after a grace period; issues
+carrying an exempt label are never touched. Pull requests are never swept.
+The periods, messages and exempt labels are the `inputs:` of
+[`stale-issues-reusable.yml`](.github/workflows/stale-issues-reusable.yml),
+set via `with:`.
 
 <br/>
 
@@ -177,8 +176,8 @@ jobs:
 ```
 
 Only `version-update:semver-minor` and `semver-patch` bumps are auto-merged;
-major bumps are left for a human. The default merge method is `squash` —
-override it with `with: { merge-method: rebase }`. Repo-level auto-merge must
+major bumps are left for a human. The merge method is the `merge-method`
+input — e.g. `with: { merge-method: rebase }`. Repo-level auto-merge must
 be enabled in the target repository's settings.
 
 <br/>
@@ -206,8 +205,8 @@ jobs:
 
 The stub MUST pass `secrets: inherit` — the checkout/commit steps push with
 `PAT_TOKEN` (a personal access token with push access), which the reusable
-receives as a named secret. Tune `output_file`, `format`, `columns`,
-`exclude`, `commit_message`, or `branch` via `with:`.
+receives as a named secret. Tune the output via `with:`; the full set is the
+`inputs:` of [`contributors-reusable.yml`](.github/workflows/contributors-reusable.yml).
 
 <br/>
 
@@ -259,8 +258,8 @@ jobs:
 
 The canonical set lives in [`.github/labels.yml`](.github/labels.yml) of this
 repo and is fetched at run time, so a rename or recolor there rolls out to
-every repo on its next sync. `skip-delete` defaults to `true` (additive — the
-sync creates/updates the canonical labels and leaves repo-specific labels
+every repo on its next sync. The sync is additive by default (`skip-delete` —
+it creates/updates the canonical labels and leaves repo-specific labels
 alone); flip it with `with: { skip-delete: false }` to prune anything not in
 the file, or preview with `with: { dry-run: true }`. This is what backs the
 `ok-to-test`, `stale`, `pinned`, `security`, and `on-hold` labels the other
@@ -290,9 +289,9 @@ jobs:
 
 Long-closed issues and pull requests are locked so resolved threads stop
 collecting drive-by comments — the natural sibling of the stale sweeper.
-Defaults: lock after 365 days of inactivity, no comment. Override
-`issue-inactive-days`, `pr-inactive-days`, `issue-comment`, `pr-comment`, or
-`process-only` (`issues` / `prs`) via `with:`.
+The inactivity periods, lock comments and `process-only` scope are the
+`inputs:` of [`lock-threads-reusable.yml`](.github/workflows/lock-threads-reusable.yml),
+set via `with:`.
 
 <br/>
 
@@ -316,8 +315,8 @@ jobs:
 
 Each PR gets a `size/xs` .. `size/xl` label by changed-line count for quick
 triage. Those labels live in [`.github/labels.yml`](.github/labels.yml), so
-label sync gives them consistent colors. Tune the thresholds
-(`xs-max-size`, `s-max-size`, `m-max-size`, `l-max-size`), require a split with
+label sync gives them consistent colors. Tune the size thresholds (the
+`*-max-size` inputs), require a split with
 `with: { fail-if-xl: true }`, or exclude files with `with: { files-to-ignore: "package-lock.json" }`.
 
 <br/>
