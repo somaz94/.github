@@ -35,10 +35,7 @@ on:
 
 jobs:
   retest:
-    # Only pull-request comments are relevant; comments on plain issues are
-    # ignored. The command-prefix match is done inside the step (a reusable
-    # job-level `if` that reads `inputs` fails to compile), so the job
-    # condition stays a simple, compile-safe expression.
+    # Only PR comments; the command-prefix match lives in the step.
     if: ${{ github.event.issue.pull_request }}
     runs-on: ubuntu-latest
     permissions:
@@ -57,7 +54,6 @@ jobs:
             const issue_number = context.payload.issue.number;
             const comment_id = context.payload.comment.id;
 
-            // Ignore comments that are not the trigger command.
             if (!context.payload.comment.body.startsWith(command)) {
               core.info(`Comment does not start with "${command}" — ignoring.`);
               return;
@@ -77,12 +73,10 @@ jobs:
               return;
             }
 
-            // Acknowledge the command with a 👀 while work is in progress.
             await github.rest.reactions.createForIssueComment({
               owner, repo, comment_id, content: 'eyes',
             });
 
-            // Resolve the PR head commit the CI ran against.
             const { data: pr } = await github.rest.pulls.get({
               owner, repo, pull_number: issue_number,
             });
@@ -123,7 +117,6 @@ jobs:
               });
             }
 
-            // Confirm with a 👍 once the re-runs are queued.
             await github.rest.reactions.createForIssueComment({
               owner, repo, comment_id, content: '+1',
             });

@@ -47,10 +47,7 @@ on:
 
 jobs:
   ok-to-test:
-    # Only pull-request comments are relevant; comments on plain issues are
-    # ignored. The command-prefix match is done inside the step (a reusable
-    # job-level `if` that reads `inputs` fails to compile), so the job
-    # condition stays a simple, compile-safe expression.
+    # Only PR comments; the command-prefix match lives in the step.
     if: ${{ github.event.issue.pull_request }}
     runs-on: ubuntu-latest
     permissions:
@@ -69,7 +66,6 @@ jobs:
             const issue_number = context.payload.issue.number;
             const comment_id = context.payload.comment.id;
 
-            // Ignore comments that are not the trigger command.
             if (!context.payload.comment.body.startsWith(command)) {
               core.info(`Comment does not start with "${command}" — ignoring.`);
               return;
@@ -89,8 +85,7 @@ jobs:
               return;
             }
 
-            // Authorized: apply the label (re-triggers label-gated CI) and
-            // acknowledge with a 👍 on the command comment.
+            // The label re-triggers label-gated CI.
             await github.rest.issues.addLabels({
               owner, repo, issue_number, labels: [label],
             });

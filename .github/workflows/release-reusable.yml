@@ -10,7 +10,7 @@ name: Create release
 #     workflow_dispatch:
 #       inputs:
 #         image_tag:
-#           description: "Publish only the container image for this version (e.g. v1.2.0)."
+#           description: "Publish only the container image for this version (e.g. v1.2.0). No GitHub release is created."
 #           required: true
 #   permissions:
 #     contents: write
@@ -22,12 +22,13 @@ name: Create release
 #         contents: write
 #         pull-requests: write
 #         packages: write
+#       with:
+#         image_tag: ${{ inputs.image_tag || '' }}
 #       secrets: inherit
 #
-# The stub MUST pass `secrets: inherit` and declare all three permissions: a
-# called workflow's permissions cannot exceed the caller's, so a missing
-# `packages: write` fails the image push rather than the run start, and a
-# missing `contents: write` blocks the release itself.
+# The stub MUST pass `image_tag` and `secrets: inherit` and declare all three
+# permissions: a called workflow's permissions cannot exceed the caller's, so
+# omitting one fails the run.
 #
 # `actions/checkout` inside a called workflow checks out the CALLER's
 # repository, so cliff.toml and the Dockerfile resolve to the repo being
@@ -47,7 +48,7 @@ on:
         type: string
         default: 'linux/amd64,linux/arm64'
       image_tag:
-        description: 'Publish the image under this version instead of the pushed tag, and skip the GitHub release. Used once per repository to seed the package before the first `docker://` release, since action.yml resolves its image at the moment a consumer runs the action — so on that first release the image must already exist when the tag lands.'
+        description: 'Publish the image under this version instead of the pushed tag, and skip the GitHub release. release-docker-action.sh dispatches this on every release before pushing the tag, because action.yml at that tag pins the image and it must already exist.'
         required: false
         type: string
         default: ''
@@ -91,10 +92,9 @@ jobs:
   release:
     name: "Release"
     runs-on: ubuntu-latest
-    # A release must not exist without the image it points at. A failed image
-    # push leaves the git tag orphaned, which is recoverable by deleting and
-    # re-tagging; a release published against a missing image is not, because
-    # consumers resolve it immediately.
+    # A release must not exist without the image it points at: a tag pushed
+    # without a prior image_tag seed would otherwise publish one whose image
+    # is missing, and consumers resolve it immediately.
     #
     # `always()` keeps this reachable when publish_image is false, which skips
     # rather than succeeds the dependency.

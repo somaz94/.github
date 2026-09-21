@@ -47,11 +47,8 @@ on:
         default: false
       skip-head-ref-prefixes:
         description: |
-          Newline-separated head-branch name prefixes whose pull requests skip
-          title validation — e.g. a repo's own E2E self-test branches. A branch
-          is exempt when its name starts with any listed prefix. Empty (the
-          default) validates every pull request, so existing callers are
-          unaffected.
+          Newline-separated head-branch prefixes whose PRs skip title
+          validation (e.g. E2E self-test branches). Empty validates every PR.
         required: false
         type: string
         default: ''

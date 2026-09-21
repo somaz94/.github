@@ -27,17 +27,13 @@ on:
         type: string
         default: ''
 
-# One greeting per pull request. cancel-in-progress: true is safe — if the PR
-# is closed+reopened quickly we just want the latest run to win.
 concurrency:
   group: pr-welcome-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   welcome:
-    # Skip bot-authored pull requests (Dependabot, Renovate, ...) so their
-    # frequent PRs are not greeted. `user.type` is `Bot` for those accounts
-    # (their login is e.g. `dependabot[bot]`).
+    # Skip bot-authored PRs (Dependabot, Renovate).
     if: ${{ github.event.pull_request.user.type != 'Bot' }}
     runs-on: ubuntu-latest
     permissions:
