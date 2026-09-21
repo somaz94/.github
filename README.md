@@ -33,6 +33,9 @@ account that does not provide its own copy.
 | [`.github/labels.yml`](.github/labels.yml) | Canonical label set synced into every repo by the label-sync workflow. |
 | [`.github/workflows/gitlab-mirror.yml`](.github/workflows/gitlab-mirror.yml) | This repo's own one-way backup mirror to GitLab (not a reusable workflow). |
 
+The caller stubs below are copies. The header comment of each `*-reusable.yml`
+is canonical; if the two disagree, the header wins.
+
 <br/>
 
 ## Enabling the PR welcome greeting
