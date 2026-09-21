@@ -26,9 +26,9 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `ci:`, `chore:`. Keep the
 subject line concise and in English.
 
-The **pull-request title** must follow the same convention — a CI check
-rejects titles that do not. Because these repositories squash-merge, the PR
-title becomes the merged commit's subject, so it needs to be a valid
+The **pull-request title** must follow the same convention, and many of these
+repositories enforce it with a CI check. When a pull request is squash-merged,
+its title becomes the commit's subject, so it needs to be a valid
 Conventional Commit on its own (e.g. `fix: handle empty parentRefs`).
 
 <br/>

@@ -28,6 +28,8 @@ account that does not provide its own copy.
 | [`.github/workflows/lock-threads-reusable.yml`](.github/workflows/lock-threads-reusable.yml) | Reusable lock for long-closed issues and pull requests. |
 | [`.github/workflows/pr-size-labeler-reusable.yml`](.github/workflows/pr-size-labeler-reusable.yml) | Reusable PR size labeler (`size/xs` .. `size/xl`). |
 | [`.github/workflows/auto-assign-reusable.yml`](.github/workflows/auto-assign-reusable.yml) | Reusable auto-assign — sets the PR author as assignee. |
+| [`.github/workflows/retest-reusable.yml`](.github/workflows/retest-reusable.yml) | Reusable `/retest` command that re-runs failed CI on a pull request. |
+| [`.github/workflows/release-reusable.yml`](.github/workflows/release-reusable.yml) | Reusable release pipeline for the Docker-based action repositories. |
 | [`.github/labels.yml`](.github/labels.yml) | Canonical label set synced into every repo by the label-sync workflow. |
 | [`.github/workflows/gitlab-mirror.yml`](.github/workflows/gitlab-mirror.yml) | This repo's own one-way backup mirror to GitLab (not a reusable workflow). |
 
@@ -149,7 +151,8 @@ Defaults: mark stale after 30 days of inactivity, close 7 days later, exempt
 the `pinned` / `security` / `on-hold` labels. Override any of
 `days-before-stale`, `days-before-close`, `stale-issue-message`,
 `close-issue-message`, `stale-issue-label`, or `exempt-issue-labels` via
-`with:`.
+`with:`. Pull requests are never swept; the knobs and exempt labels are
+issue-scoped.
 
 <br/>
 
@@ -228,8 +231,8 @@ jobs:
 
 The PR title is validated against Conventional Commits. Because a squash merge
 turns the title into the commit subject, this keeps the merged history in
-`feat:` / `fix:` / `docs:` form. The default type list is
-`feat, fix, docs, refactor, test, ci, chore` — override it with
+`feat:` / `fix:` / `docs:` form. The default type list is the `types` input
+default in [`semantic-pr-reusable.yml`](.github/workflows/semantic-pr-reusable.yml) — override it with
 `with: { types: "feat\nfix\n..." }`, or require a scope with
 `with: { require-scope: true }`.
 
@@ -339,3 +342,72 @@ jobs:
 
 The pull-request author is set as the assignee so open PRs always show an
 owner. Bot-authored PRs (Dependabot, Renovate, ...) are skipped.
+
+<br/>
+
+## Enabling the `/retest` command
+
+Add this stub at `.github/workflows/retest.yml` in the target repository:
+
+```yaml
+name: retest
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  retest:
+    uses: somaz94/.github/.github/workflows/retest-reusable.yml@main
+```
+
+A collaborator with write access comments `/retest` on a pull request, and the
+failed jobs of the latest run of each workflow on the PR head commit are
+re-run. Successful and skipped runs are left alone. `actions: write` is what
+allows the re-run.
+
+<br/>
+
+## Releasing a Docker-based action
+
+The Docker-based action repositories release through this stub at
+`.github/workflows/release.yml`:
+
+```yaml
+name: Create release
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Publish only the container image for this version (e.g. v1.2.0). No GitHub release is created."
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    uses: somaz94/.github/.github/workflows/release-reusable.yml@main
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: write
+    with:
+      image_tag: ${{ inputs.image_tag || '' }}
+    secrets: inherit
+```
+
+`action.yml` pins `image: docker://ghcr.io/somaz94/<repo>:<version>`, and a
+consumer resolves that image the moment the tag exists. So every release
+publishes the image first: a `workflow_dispatch` with `image_tag` builds and
+pushes only the image, and once that succeeds the version tag is pushed. The
+tag push creates the GitHub release and slides the major tag. Do not push a
+version tag before its image has been published.
