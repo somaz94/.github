@@ -43,7 +43,7 @@ on:
         type: boolean
         default: true
       platforms:
-        description: 'Platforms to build the image for. `image: Dockerfile` built for whatever the runner was; a registry reference resolves only to what was pushed, so dropping arm64 here breaks arm64 runners at pull time.'
+        description: 'Platforms to build the image for. A registry reference resolves only to what was pushed, so dropping arm64 here breaks arm64 runners at pull time.'
         required: false
         type: string
         default: 'linux/amd64,linux/arm64'
