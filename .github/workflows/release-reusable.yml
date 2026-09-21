@@ -79,7 +79,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The image_tag dispatch already published this version before the tag
+      # was pushed; rebuilding would change the digest consumers resolve. Any
+      # inspect failure falls through to a build, so an unseeded tag still works.
+      - name: "Check for a seeded image"
+        id: seeded
+        if: github.event_name == 'push'
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+        run: |
+          if docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$IMAGE already published by the image_tag dispatch; skipping the rebuild."
+          fi
+
       - name: "Build and push"
+        if: steps.seeded.outputs.exists != 'true'
         uses: docker/build-push-action@v7
         with:
           context: .
