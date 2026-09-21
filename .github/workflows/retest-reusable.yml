@@ -46,10 +46,12 @@ jobs:
     steps:
       - name: Authorize commenter and re-run failed jobs
         uses: actions/github-script@v9
+        env:
+          COMMAND: ${{ inputs.command }}
         with:
           script: |
             const { owner, repo } = context.repo;
-            const command = `${{ inputs.command }}`;
+            const command = process.env.COMMAND;
             const commenter = context.payload.comment.user.login;
             const issue_number = context.payload.issue.number;
             const comment_id = context.payload.comment.id;

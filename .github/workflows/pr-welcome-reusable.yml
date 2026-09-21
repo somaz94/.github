@@ -42,9 +42,11 @@ jobs:
     steps:
       - name: Add greeting comment
         uses: actions/github-script@v9
+        env:
+          MESSAGE: ${{ inputs.message }}
         with:
           script: |
-            const custom = `${{ inputs.message }}`.trim();
+            const custom = (process.env.MESSAGE || '').trim();
             const body = custom || [
               'Thanks for opening this pull request! 🙌',
               '',
