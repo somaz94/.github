@@ -101,6 +101,9 @@ jobs:
           push: true
           platforms: ${{ inputs.platforms }}
           tags: ghcr.io/${{ github.repository }}:${{ inputs.image_tag != '' && inputs.image_tag || github.ref_name }}
+          build-args: |
+            VERSION=${{ inputs.image_tag != '' && inputs.image_tag || github.ref_name }}
+            REVISION=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
